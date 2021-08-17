@@ -1,59 +1,88 @@
-require("dotenv").config({ path: "./config.env" });
-const express = require("express");
-const mongoose = require("mongoose");
-const User = require("./Model/User");
+const express = require('express');
+const mongoose = require('mongoose');
+const User = require('./Models/User');
+const router = express.Router();
 const app = express();
-app.use(express.json());
-// DB connection
-const DB = process.env.DATABASE_URI.replace("<password>", process.env.PASSWORD);
-mongoose
-  .connect(DB, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(console.log("connection to the database"));
+//Environment variables
+require('dotenv').config();
 
-//   Routes
+//Connect To DataBase
+const connectDB = async ()=>{
+    try {
+        let result = mongoose.connect("mongodb://localhost:27017/PersonDB",{
+            useNewUrlParser: true,
+            useUnifiedTopology: true,
+        });
+        console.log("DataBase Connected");
+    } catch (error) {
+        console.log(error);
+    }
+};
+connectDB();
+
+//Routes
 // GET :  RETURN ALL USERS
-app.get("/users", (req, res) => {
-  User.find((err, data) => {
+router.get('/',async (req,res)=>{
+    try {
+        const detail=await User.find();
+        res.send({response:detail , message:"Get All Users"});
+    } catch (error) {
+        console.log(error);
+        res.status(400).send('Can Not Get All Users');
+    }
+});
+
+// POST :  ADD A NEW USER TO THE DATABASE
+router.post('/', async (req,res)=>{
+    try {
+        let newUser = new User(req.body);
+        const detail = await newUser.save();
+        res.send({response:detail , message:"New User Added"});
+    } catch (error) {
+        console.log(error);
+        res.status(401).send("Can Not Added User");
+        
+    }
+});
+
+// PUT : EDIT A USER BY ID 
+router.put('/:id', async(req,res)=>{
+    try {
+        const detail=await User.updateOne(
+            {_id:req.params.id},
+            {$set:{...req.body}}
+        );
+        detail.nModified
+            ? res.send({message:"User Updated"})
+            : res.send({message:"User Already Updated"});
+    } catch (error) {
+        console.log(error);
+        res.status(402).send("Can Not Update User");
+    }
+});
+
+// DELETE : REMOVE A USER BY ID 
+router.delete('/:id', async(req,res)=>{
+    try {
+        const detail = await User.deleteOne({_id:req.params.id});
+        detail.deletedCount
+            ? res.send({message:"User Deleted"})
+            : res.send({message:"User Already Deleted"});
+    } catch (error) {
+        console.log(error);
+        res.status(403).send("Can Not Delete User");
+    }
+});
+
+
+
+
+
+
+
+// Start Server
+const port=process.env.PORT ;
+app.listen(port,(err)=>{
     if (err) console.log(err);
-    res.status(200).json({
-      status: "success",
-      data: { users: data },
-    });
-  });
-});
-//  POST :  ADD A NEW USER TO THE DATABASE
-app.post("/users", (req, res) => {
-  console.log(req.body);
-  const newUser = User.create(req.body);
-  res.status(200).json({
-    status: "success",
-    data: {
-      users: newUser,
-    },
-  });
-});
-// PUT : EDIT A USER BY ID
-app.put("/users", (req, res) => {
-  User.findByIdAndUpdate("60eb13551bae781eb09c53c2", req.body, (err, data) => {
-    if (err) console.log(err);
-    res.status(200).json({
-      status: "success",
-      data: { user: data },
-    });
-  });
-});
-// DELETE : REMOVE A USER BY ID
-app.delete("/users", (req, res) => {
-  User.findByIdAndDelete("60eb11701d4ee33a6062a588", (err, data) => {
-    if (err) console.log(err);
-    res.status(204).json({
-      status: "success",
-      data: { user: data },
-    });
-  });
-});
-//start the server
-const port = process.env.PORT;
-app.listen(port, () => {
-  console.log(`server is listening on port ${port}`);
+    console.log(`The Server is Listening On Port ${port}`);
 });
